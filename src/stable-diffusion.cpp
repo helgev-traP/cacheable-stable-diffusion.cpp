@@ -2974,6 +2974,7 @@ sd_image_t* generate_image_internal(sd_ctx_t* sd_ctx,
 
     // Get learned condition
     condition_params.zero_out_masked = false;
+    sd_ctx->sd->cond_stage_model->alloc_params_buffer();
     SDCondition cond                 = sd_ctx->sd->cond_stage_model->get_learned_condition(work_ctx,
                                                                                            sd_ctx->sd->n_threads,
                                                                                            condition_params);
@@ -3119,6 +3120,7 @@ sd_image_t* generate_image_internal(sd_ctx_t* sd_ctx,
             LOG_INFO("PHOTOMAKER: start_merge_step: %d", start_merge_step);
         }
 
+        sd_ctx->sd->diffusion_model->alloc_params_buffer();
         struct ggml_tensor* x_0 = sd_ctx->sd->sample(work_ctx,
                                                      sd_ctx->sd->diffusion_model,
                                                      true,
@@ -3163,6 +3165,7 @@ sd_image_t* generate_image_internal(sd_ctx_t* sd_ctx,
     std::vector<struct ggml_tensor*> decoded_images;  // collect decoded images
     for (size_t i = 0; i < final_latents.size(); i++) {
         t1                      = ggml_time_ms();
+        sd_ctx->sd->first_stage_model->alloc_params_buffer();
         struct ggml_tensor* img = sd_ctx->sd->decode_first_stage(work_ctx, final_latents[i] /* x_0 */);
         // print_ggml_tensor(img);
         if (img != nullptr) {
@@ -4075,6 +4078,7 @@ SD_API sd_condition_t* sd_encode_condition(
     condition_params.adm_in_channels = static_cast<int>(sd_ctx->sd->diffusion_model->get_adm_in_channels());
     condition_params.zero_out_masked = false;
 
+    sd_ctx->sd->cond_stage_model->alloc_params_buffer();
     SDCondition temp_cond = sd_ctx->sd->cond_stage_model->get_learned_condition(
         work_ctx,
         sd_ctx->sd->n_threads,
@@ -4159,6 +4163,7 @@ SD_API sd_image_latent_t* sd_encode_ref_image(
 
     sd_image_to_ggml_tensor(*image, img);
 
+    sd_ctx->sd->first_stage_model->alloc_params_buffer();
     ggml_tensor* temp_latent = sd_ctx->sd->encode_first_stage(work_ctx, img);
 
     size_t required_storage_size = ggml_nbytes(temp_latent) + ggml_tensor_overhead() * 2;
@@ -4259,6 +4264,7 @@ SD_API sd_image_t sd_img2img_with_cond(
     ggml_tensor* init_img = ggml_new_tensor_4d(work_ctx, GGML_TYPE_F32, width, height, 3, 1);
     sd_image_to_ggml_tensor(input_frame, init_img);
 
+    sd_ctx->sd->first_stage_model->alloc_params_buffer();
     ggml_tensor* init_latent = sd_ctx->sd->encode_first_stage(work_ctx, init_img);
 
     std::vector<ggml_tensor*> refs;
@@ -4284,6 +4290,7 @@ SD_API sd_image_t sd_img2img_with_cond(
     SDCondition img_cond;
     SDCondition id_cond;
 
+    sd_ctx->sd->diffusion_model->alloc_params_buffer();
     struct ggml_tensor* x_0 = sd_ctx->sd->sample(work_ctx,
                                                  sd_ctx->sd->diffusion_model,
                                                  true,
@@ -4313,6 +4320,7 @@ SD_API sd_image_t sd_img2img_with_cond(
     }
 
     if (x_0) {
+        sd_ctx->sd->first_stage_model->alloc_params_buffer();
         struct ggml_tensor* decoded = sd_ctx->sd->decode_first_stage(work_ctx, x_0);
 
         if (sd_ctx->sd->free_params_immediately) {
